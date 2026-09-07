@@ -117,7 +117,8 @@ export class McpServerService {
     notifyTasksUpdated: () => void = () => {},
     startTask?: (taskId: string, launchMode?: LaunchMode, model?: ClaudeModel) => Promise<void>,
     notifyUser?: (notification: McpUserNotification) => void,
-    getRotationStatus?: (taskId: string) => unknown | null
+    getRotationStatus?: (taskId: string) => unknown | null,
+    dismissPr?: (target: { taskId?: string; url?: string }) => { url: string; deletedTaskIds: string[] }
   ) {
     const createServer = (): Server => {
       const server = new Server(
@@ -231,6 +232,24 @@ export class McpServerService {
                 id: { type: 'string', description: 'タスクID' },
               },
               required: ['id'],
+            },
+          },
+          {
+            name: 'dismiss_pr',
+            description:
+              'レビュー依頼PRを dismiss する。PR URL を dismiss 済みとして記録し、該当する review タスクを削除する。' +
+              '以後そのPRはPR自動同期でタスク再作成されない（PRがclose/mergeされると記録は自動で消える）。' +
+              'id と url のどちらか一方を指定する（id は list_tasks で確認可能）',
+            inputSchema: {
+              type: 'object' as const,
+              properties: {
+                id: { type: 'string', description: 'review タスクのID。そのタスクの PR URL を dismiss する' },
+                url: {
+                  type: 'string',
+                  description:
+                    'GitHub PR URL。タスクが存在しないPRでも先回りで dismiss できる。該当する review タスクがあれば併せて削除される',
+                },
+              },
             },
           },
           {
@@ -437,6 +456,15 @@ export class McpServerService {
               taskService.delete(id)
               notifyTasksUpdated()
               return { content: [{ type: 'text' as const, text: `deleted: ${id}` }] }
+            }
+            case 'dismiss_pr': {
+              const { id, url } = args as { id?: string; url?: string }
+              if (!dismissPr) {
+                throw new Error('dismiss_pr is not available')
+              }
+              const result = dismissPr({ taskId: id, url })
+              notifyTasksUpdated()
+              return { content: [{ type: 'text' as const, text: toJson({ dismissed: result.url, deletedTaskIds: result.deletedTaskIds }) }] }
             }
             case 'start_task': {
               const { id, launchMode, model } = args as { id: string; launchMode?: LaunchMode; model?: ClaudeModel }
