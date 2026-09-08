@@ -2,7 +2,7 @@ import { ipcMain, Notification, type BrowserWindow } from 'electron'
 import { GitHubAuthError, type GitHubService, type GitHubAuthFailure } from '../services/GitHubService'
 import type { GitService } from '../services/GitService'
 import type { TaskService } from '../services/TaskService'
-import type { DismissedPrService } from '../services/DismissedPrService'
+import { dismissReviewPr, type DismissedPrService } from '../services/DismissedPrService'
 import type { AppSettings, GitHubTokenVerifyResult } from '../../../src/types/ipc'
 import type { ReviewTask } from '../../../src/types/task'
 import { buildRepoFullNameMap, extractFullNameFromPrUrl, listRepoFullNames } from '../utils/repoMap'
@@ -37,16 +37,7 @@ export function registerGitHubHandlers(
   })
 
   ipcMain.handle('github:dismiss-pr', async (_, taskId: string) => {
-    const task = taskService.list().find((t) => t.id === taskId)
-    if (!task) {
-      throw new Error(`Task not found: ${taskId}`)
-    }
-    const url = (task as { url?: string }).url
-    if (task.type !== 'review' || !url) {
-      throw new Error('Only review tasks with a PR URL can be dismissed')
-    }
-    dismissedPrService.add(url)
-    taskService.delete(taskId)
+    dismissReviewPr(taskService, dismissedPrService, { taskId })
   })
 
   ipcMain.handle(

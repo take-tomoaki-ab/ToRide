@@ -9,7 +9,7 @@ import { GitService } from './services/GitService'
 import { ClaudeService } from './services/ClaudeService'
 import { DevServerService } from './services/DevServerService'
 import { GitHubService } from './services/GitHubService'
-import { DismissedPrService } from './services/DismissedPrService'
+import { DismissedPrService, dismissReviewPr } from './services/DismissedPrService'
 import { LocalHttpServer } from './services/LocalHttpServer'
 import { StopHookService } from './services/StopHookService'
 import { ContextLineService } from './services/ContextLineService'
@@ -378,7 +378,8 @@ app.whenReady().then(() => {
   }
   new McpServerService(localHttpServer, taskService, devServerService, getSettings, () => {
     getWindow()?.webContents.send('tasks:updated')
-  }, startTaskFn, notifyUserFromMcp, (taskId) => rotationService?.getStatus(taskId) ?? null)
+  }, startTaskFn, notifyUserFromMcp, (taskId) => rotationService?.getStatus(taskId) ?? null,
+    (target) => dismissReviewPr(taskService, dismissedPrService, target))
   const initialPort = getSettings().stopHookPort ?? 39457
   localHttpServer.start(initialPort).catch((e) => {
     console.error('[LocalHttpServer] failed to start:', e)
